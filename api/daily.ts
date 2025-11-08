@@ -146,7 +146,7 @@ export default async function handler(
     });
 
   } catch (error) {
-    console.error('Error executing ohaeng-today bot:', error);
+    console.error('Error executing daily:', error);
     let errorMessage = 'An unknown error occurred.';
     if (error instanceof Error) {
       errorMessage = error.message;
