@@ -1,0 +1,23 @@
+# ide
+.idea/
+.vscode/
+
+# AI
+GEMINI.md
+
+# Mac
+.DS_Store
+
+# Node
+node_modules/
+
+# env
+.env
+
+# Vercel
+.vercel/
+
+# TypeScript
+api/**/*.js
+api/**/*.js.map
+.vercel

@@ -1,0 +1,25 @@
+{
+  "name": "ohaeng-today",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.20.0",
+  "dependencies": {
+    "groq-sdk": "^0.34.0",
+    "korean-lunar-calendar": "^0.3.6",
+    "twitter-api-v2": "^1.27.0",
+    "twitter-text": "^3.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "@types/twitter-text": "^3.1.10",
+    "@vercel/node": "^5.5.5",
+    "typescript": "^5.9.3"
+  }
+}
