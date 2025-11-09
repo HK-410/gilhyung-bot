@@ -10,18 +10,12 @@ importers:
 
   apps/githyung-bot:
     dependencies:
-      groq-sdk:
-        specifier: ^0.34.0
-        version: 0.34.0
+      '@hakyung/x-bot-toolkit':
+        specifier: workspace:*
+        version: link:../../packages/x-bot-toolkit
       korean-lunar-calendar:
         specifier: ^0.3.6
         version: 0.3.6
-      twitter-api-v2:
-        specifier: ^1.27.0
-        version: 1.27.0
-      twitter-text:
-        specifier: ^3.1.0
-        version: 3.1.0
     devDependencies:
       '@types/node':
         specifier: ^24.10.0
@@ -36,7 +30,24 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
-  packages/shared-utils: {}
+  packages/x-bot-toolkit:
+    dependencies:
+      groq-sdk:
+        specifier: ^0.34.0
+        version: 0.34.0
+      twitter-api-v2:
+        specifier: ^1.27.0
+        version: 1.27.0
+      twitter-text:
+        specifier: ^3.1.0
+        version: 3.1.0
+    devDependencies:
+      '@types/twitter-text':
+        specifier: ^3.1.10
+        version: 3.1.10
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
 
 packages:
 
@@ -944,7 +955,7 @@ snapshots:
       consola: 3.4.2
       detect-libc: 2.1.2
       https-proxy-agent: 7.0.6
-      node-fetch: 2.7.0
+      node-fetch: 2.6.9
       nopt: 8.1.0
       semver: 7.7.3
       tar: 7.5.2

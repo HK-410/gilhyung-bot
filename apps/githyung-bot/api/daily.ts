@@ -1,10 +1,50 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import KoreanLunarCalendar from 'korean-lunar-calendar';
-import { TwitterApi } from 'twitter-api-v2';
-import Groq from 'groq-sdk';
-import twitter from 'twitter-text';
+import { generateGroqResponse, postTweetThread, LlmResponse, calculateBytes } from '@hakyung/x-bot-toolkit';
 
-const MAX_TWEET_BYTES = 280;
+// Specific data structures for this bot
+interface LlmReply {
+  persona: string;
+  shipshin: string;
+  luck_level: string;
+  explanation: string;
+  lucky_item: string;
+}
+
+interface LlmResponseData extends LlmResponse {
+  mainTweetSummary: string;
+  details: LlmReply[];
+}
+
+// JSON Schema definition for LlmResponseData to enforce structured output from the LLM
+const LlmResponseDataSchema = {
+  type: 'object',
+  properties: {
+    mainTweetSummary: { 
+      type: 'string',
+      description: "A summary of the day's fortune ranking, formatted for a tweet."
+    },
+    details: {
+      type: 'array',
+      description: "An array containing the detailed fortunes for each of the 5 personas, sorted by rank.",
+      items: {
+        type: 'object',
+        properties: {
+          persona: { type: 'string', description: "The name of the IT persona." },
+          shipshin: { type: 'string', description: "The calculated Shipshin for the persona." },
+          luck_level: { type: 'string', description: "The fortune level, e.g., '대길'." },
+          explanation: { type: 'string', description: "A creative, IT-themed explanation of the fortune." },
+          lucky_item: { type: 'string', description: "A lucky item for the day, including a modifier." },
+        },
+        required: ['persona', 'shipshin', 'luck_level', 'explanation', 'lucky_item'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['mainTweetSummary', 'details'],
+  additionalProperties: false,
+};
+
 
 const CHEONGAN_DB = {
   '갑': { ohaeng: '목', yinYang: 'yang' }, '을': { ohaeng: '목', yinYang: 'yin' },
@@ -18,19 +58,6 @@ const PERSONA_DB = {
   '[토(土) 인프라/DBA]': CHEONGAN_DB['무'], '[금(金) 개발자]': CHEONGAN_DB['경'],
   '[수(水) DevOps/SRE]': CHEONGAN_DB['임'],
 };
-
-interface LlmReply {
-  persona: string;
-  shipshin: string;
-  luck_level: string;
-  explanation: string;
-  lucky_item: string;
-}
-
-interface LlmResponseData {
-  mainTweetSummary: string;
-  details: LlmReply[];
-}
 
 interface FinalReply extends LlmReply {
   rank: number;
@@ -153,7 +180,6 @@ export default async function handler(
   res: VercelResponse,
 ) {
   const authHeader = req.headers['authorization'];
-  console.log(authHeader);
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).send('Unauthorized: Access Denied');
   }
@@ -175,7 +201,6 @@ export default async function handler(
     const fullDateString = `${kstDate.getFullYear()}년 ${kstDate.getMonth() + 1}월 ${kstDate.getDate()}일`;
 
     const shipshinResultsForLLM: string[] = [];
-
     for (const [personaName, ilganData] of Object.entries(PERSONA_DB)) {
       const shipshin = getShipshin(ilganData, todayCheonganData);
       shipshinResultsForLLM.push(`- ${personaName}은(는) [${shipshin}]입니다.`);
@@ -192,118 +217,48 @@ Rank all 5 personas from 1st to 5th.
 Generate the complete JSON response strictly following the <Output Format>.
 Ensure the 'details' array is sorted by your rank (1st to 5th).`;
 
-    console.log('Generating content with Groq API (LLM-driven ranking)...');
-    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-    const chatCompletion = await groq.chat.completions.create({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      model: 'openai/gpt-oss-120b',
-      temperature: 0.75,
-    });
+    const llmResponse = await generateGroqResponse<LlmResponseData>(
+      systemPrompt, 
+      userPrompt,
+      'openai/gpt-oss-120b',
+      { 
+        type: 'json_schema',
+        json_schema: {
+          name: 'daily_fortune_response',
+          description: 'The structured JSON response for the daily IT persona fortune.',
+          schema: LlmResponseDataSchema,
+          strict: true,
+        }
+      }
+    );
 
-    let generatedContent = chatCompletion.choices[0]?.message?.content;
-
-    if (!generatedContent) {
-      throw new Error('Groq API did not return valid content.');
+    // Type guard to ensure we have an object, not a string.
+    if (typeof llmResponse === 'string') {
+      console.error('LLM returned a string instead of a JSON object:', llmResponse);
+      throw new Error('Invalid response type from LLM. Expected a JSON object.');
     }
 
-    let llmResponseData: LlmResponseData;
-    try {
-      const jsonStart = generatedContent.indexOf('{');
-      const jsonEnd = generatedContent.lastIndexOf('}');
-      if (jsonStart === -1 || jsonEnd === -1) {
-        console.error('Raw LLM output:', generatedContent);
-        throw new Error('No JSON object found in LLM response.');
-      }
-      const jsonString = generatedContent.substring(jsonStart, jsonEnd + 1);
-      llmResponseData = JSON.parse(jsonString);
-      
-      if (!llmResponseData.mainTweetSummary || !llmResponseData.details || llmResponseData.details.length !== 5) {
-        console.error('Invalid JSON structure. Raw:', jsonString);
-        throw new Error('Invalid JSON structure (mainTweetSummary or details) received from LLM.');
-      }
-    } catch (e: any) {
-      console.error('Failed to parse LLM JSON response:', e.message);
-      console.error('Raw LLM output:', generatedContent);
-      throw new Error('LLM did not return valid JSON.');
-    }
+    const llmResponseData = llmResponse;
 
     const mainTweetContent = `${fullDateString} 오늘의 직무 운세 🔮\n\n${llmResponseData.mainTweetSummary}`;
 
-
-    const sortedReplies = llmResponseData.details; 
-    const finalReplies: FinalReply[] = sortedReplies.map((reply, index) => ({
+    const finalReplies: FinalReply[] = llmResponseData.details.map((reply, index) => ({
       ...reply,
       rank: index + 1,
     }));
 
     if (!isDryRun) {
       console.log('--- [LIVE RUN] ---');
-      const twitterClient = new TwitterApi({
-        appKey: process.env.X_APP_KEY as string,
-        appSecret: process.env.X_APP_SECRET as string,
-        accessToken: process.env.X_ACCESS_TOKEN as string,
-        accessSecret: process.env.X_ACCESS_SECRET as string,
-      });
-
-      let mainTweetId: string;
-      try {
-        const mainTweetResult = await twitterClient.v2.tweet(mainTweetContent);
-        mainTweetId = mainTweetResult.data.id;
-        console.log(`Main tweet posted: ${mainTweetId}`);
-      } catch (e: any) {
-        console.error('Failed to post main tweet:', e);
-        return res.status(500).json({ success: false, error: 'Failed to post main tweet', details: e.message });
-      }
-
-      let lastTweetId = mainTweetId;
-      
-      for (const reply of finalReplies) { 
-        try {
-          let replyContent = `[${reply.rank}위: ${reply.persona} (${reply.shipshin} / ${reply.luck_level})]
+      const replyContents = finalReplies.map(reply => 
+        `[${reply.rank}위: ${reply.persona} (${reply.shipshin} / ${reply.luck_level})]
 ${reply.explanation}
 
-🍀 행운의 아이템: ${reply.lucky_item}`;
-
-          if (twitter.parseTweet(replyContent).weightedLength > MAX_TWEET_BYTES) {
-            console.warn(`Warning: Truncating reply for ${reply.persona} as it exceeds byte limit.`);
-            const header = `[${reply.rank}위: ${reply.persona} (${reply.shipshin} / ${reply.luck_level})]\n`;
-            const footer = `\n\n🍀 행운의 아이템: ${reply.lucky_item}`;
-            const maxExplanationLength = MAX_TWEET_BYTES - twitter.parseTweet(header + footer).weightedLength - 3;
-            
-            let truncatedExplanation = "";
-            let currentLength = 0;
-            const chars = Array.from(reply.explanation);
-            for(const char of chars) {
-                const charWeight = twitter.parseTweet(char).weightedLength;
-                if (currentLength + charWeight > maxExplanationLength) {
-                    break;
-                }
-                truncatedExplanation += char;
-                currentLength += charWeight;
-            }
-            replyContent = `${header}${truncatedExplanation}...\n${footer}`;
-          }
-
-          const replyResult = await twitterClient.v2.tweet(replyContent, {
-            reply: { in_reply_to_tweet_id: lastTweetId },
-          });
-          lastTweetId = replyResult.data.id;
-          console.log(`Posted reply for ${reply.persona} (Rank ${reply.rank})`);
-          
-          await new Promise(resolve => setTimeout(resolve, 1500));
-
-        } catch (e: any) {
-          console.error(`Failed to post reply for ${reply.persona}:`, e);
-        }
-      }
-      console.log('--- Tweet thread posted successfully ---');
-      
+🍀 행운의 아이템: ${reply.lucky_item}`
+      );
+      await postTweetThread(mainTweetContent, replyContents);
     } else {
       console.log('--- [DRY RUN] ---');
-      console.log(`[Main Tweet] (${twitter.parseTweet(mainTweetContent).weightedLength} bytes):\n${mainTweetContent}`);
+      console.log(`[Main Tweet] (${calculateBytes(mainTweetContent)} bytes):\n${mainTweetContent}`);
       console.log('---------------------------------');
       
       for (const reply of finalReplies) {
@@ -311,7 +266,7 @@ ${reply.explanation}
 ${reply.explanation}
 
 🍀 행운의 아이템: ${reply.lucky_item}`;
-        console.log(`[Reply ${reply.rank}] (${twitter.parseTweet(replyContent).weightedLength} bytes):\n${replyContent}`);
+        console.log(`[Reply ${reply.rank}] (${calculateBytes(replyContent)} bytes):\n${replyContent}`);
         console.log('---------------------------------');
       }
     }

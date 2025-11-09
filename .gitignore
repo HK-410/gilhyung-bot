@@ -11,6 +11,9 @@ GEMINI.md
 # Node
 node_modules/
 
+# Build
+dist/
+
 # env
 .env
 

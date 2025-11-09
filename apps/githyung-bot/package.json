@@ -4,10 +4,8 @@
   "private": true,
   "main": "api/daily.ts",
   "dependencies": {
-    "groq-sdk": "^0.34.0",
-    "korean-lunar-calendar": "^0.3.6",
-    "twitter-api-v2": "^1.27.0",
-    "twitter-text": "^3.1.0"
+    "@hakyung/x-bot-toolkit": "workspace:*",
+    "korean-lunar-calendar": "^0.3.6"
   },
   "devDependencies": {
     "@types/node": "^24.10.0",
