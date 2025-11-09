@@ -269,7 +269,7 @@ ${reply.explanation}
 
           if (twitter.parseTweet(replyContent).weightedLength > MAX_TWEET_BYTES) {
             console.warn(`Warning: Truncating reply for ${reply.persona} as it exceeds byte limit.`);
-            const header = `[${reply.rank}위: ${reply.persona} (${reply.luck_level})]\n`;
+            const header = `[${reply.rank}위: ${reply.persona} (${reply.shipshin} / ${reply.luck_level})]\n`;
             const footer = `\n\n🍀 행운의 아이템: ${reply.lucky_item}`;
             const maxExplanationLength = MAX_TWEET_BYTES - twitter.parseTweet(header + footer).weightedLength - 3;
             
@@ -307,7 +307,7 @@ ${reply.explanation}
       console.log('---------------------------------');
       
       for (const reply of finalReplies) {
-        const replyContent = `[${reply.rank}위: ${reply.persona} (${reply.luck_level})]
+        const replyContent = `[${reply.rank}위: ${reply.persona} (${reply.shipshin} / ${reply.luck_level})]
 ${reply.explanation}
 
 🍀 행운의 아이템: ${reply.lucky_item}`;
