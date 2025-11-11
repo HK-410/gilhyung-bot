@@ -209,11 +209,11 @@ export default async function handler(
     const kstTime = new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' });
     const kstDate = new Date(kstTime);
     const calendar = new KoreanLunarCalendar();
-    calendar.setSolarDate(kstDate.getFullYear(), kstDate.getMonth() + 1, kstDate.getDate());
+    calendar.setSolarDate(kstDate.getUTCFullYear(), kstDate.getUTCMonth() + 1, kstDate.getUTCDate());
     const iljin: string = calendar.getKoreanGapja().day;
     const todayCheonganChar: string = iljin.charAt(0);
     const todayCheonganData = CHEONGAN_DB[todayCheonganChar as keyof typeof CHEONGAN_DB];
-    const fullDateString = `${kstDate.getFullYear()}년 ${kstDate.getMonth() + 1}월 ${kstDate.getDate()}일`;
+    const fullDateString = `${kstDate.getUTCFullYear()}년 ${kstDate.getUTCMonth() + 1}월 ${kstDate.getUTCDate()}일`;
     const dayOfWeek = kstDate.toLocaleString('ko-KR', { weekday: 'long' });
     console.log(`[${runIdentifier}] Target date (KST): ${fullDateString}, Iljin: ${iljin}, Day of Week: ${dayOfWeek}`);
 
