@@ -1,8 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "cd ../.. && pnpm install",
-  "outputDirectory": "./src",
   "buildCommand": "cd ../.. && pnpm run build",
+  "rewrites": [
+    { "source": "/src/api", "destination": "/api" }
+  ],
   "crons": [
     {
       "path": "/api/daily",
