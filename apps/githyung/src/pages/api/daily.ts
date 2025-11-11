@@ -1,4 +1,3 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 import KoreanLunarCalendar from 'korean-lunar-calendar';
 import { GroqClient, TwitterClient, LlmResponse } from '@hakyung/x-bot-toolkit';
 import type { NextApiRequest, NextApiResponse } from "next";
