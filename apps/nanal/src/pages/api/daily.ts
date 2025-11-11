@@ -14,14 +14,17 @@ export default async function handler(
   console.log(`[${runIdentifier}] Function start.`);
 
   // 1. Authenticate cron job request
-  const isCron = req.headers['authorization']?.split(' ')[1] === process.env.CRON_SECRET;
-  const isDryRun = req.query.dryRun === 'true';
-  console.log(`[${runIdentifier}] Run mode: cron=${isCron}, dryRun=${isDryRun}`);
-
-  if (!isCron && !isDryRun) {
+  if (req.headers['authorization']?.split(' ')[1] === process.env.CRON_SECRET) {
     console.log(`[${runIdentifier}] Unauthorized access attempt.`);
     return res.status(401).send('Unauthorized');
   }
+  if (req.method !== 'GET') {
+    console.log(`[${runIdentifier}] Method not allowed: ${req.method}`);
+    return res.status(405).send('Method Not Allowed');
+  }
+
+  const isDryRun = req.query.dryRun === 'true';
+  console.log(`[${runIdentifier}] Run mode: dryRun=${isDryRun}`);
 
   try {
     // 2. Initialize Clients
