@@ -4,7 +4,6 @@
   "installCommand": "cd .. && pnpm install",
   "devCommand": "pnpm run dev",
   "buildCommand": "cd .. && pnpm run build",
-  "outputDirectory": "",
   "crons": [
     {
       "path": "/api/cron/midnight",
